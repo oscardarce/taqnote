@@ -157,7 +157,7 @@ Los pasos 1.1 a 1.4 producen una grabadora con transcript. Del 1.5 al 1.7 salen 
 - Comando `transcribe_chunk` que devuelve segmentos, y adaptador `Transcriber` local en TypeScript que lo invoca.
 - Si la retención de audio está desactivada, el WAV se borra al transcribirse (PRV-01).
 
-**Listo cuando:** una reunión de 30 minutos queda transcrita en local y el glosario corrige al menos un nombre propio que antes salía mal.
+**Listo cuando:** una reunión de 30 minutos, grabada con la ventana minimizada, queda transcrita en local sin bloques pendientes al restaurarla, y el glosario corrige al menos un nombre propio que antes salía mal.
 
 ### 1.4 Transcript en vivo y marcadores · TRN-02, UX-01 · M
 
@@ -264,6 +264,7 @@ Workers y D1 (CLD-01), después Paddle y licencias (CLD-02, CLD-03), luego el pr
 | --- | --- |
 | El loopback de WASAPI deja huecos o se desfasa | El spike CAP-00 lo valida antes de construir encima |
 | whisper.cpp no compila en la máquina de desarrollo | Prerrequisitos listados; Vulkan como alternativa a CUDA |
+| Con la ventana minimizada, la WebView se frena o se suspende y el orquestador se atrasa | El audio queda en Rust y en disco; al arrancar y al volver a mostrarse la ventana, el orquestador procesa los bloques pendientes. Se prueba en el paso 1.3 |
 | El LLM local inventa acuerdos | Referencias obligatorias a segmentos y revisión antes de exportar |
 | La API de Notion cambia | Versión fijada en el header y pruebas del cliente con respuestas grabadas |
 | El tenant de la empresa bloquea el consentimiento | To Do usa un permiso acotado y se prueba en el paso 1.11; Lists es opcional y se documenta cómo pedir la aprobación del admin |
