@@ -6,7 +6,7 @@
 
 Taqnote es un taquígrafo para reuniones: escucha, transcribe y entrega una minuta revisada cuyos acuerdos terminan como tareas en la herramienta del usuario. Funciona con Teams, Google Meet y Zoom sin bots, prioriza el español y es gratis por defecto.
 
-**Métrica norte:** reuniones por semana cuya minuta revisada llega a la herramienta del usuario (Notion, Microsoft To Do, Markdown).
+**Métrica norte:** reuniones por semana cuya minuta revisada llega a la herramienta del usuario (Notion, Microsoft To Do o Lists, Google Calendar o Tasks, Markdown).
 
 ## Para quién
 
@@ -21,8 +21,9 @@ Taqnote es un taquígrafo para reuniones: escucha, transcribe y entrega una minu
 3. **Open source completo.** Sin funciones cerradas en la app: se cobra por el servicio, no por el código.
 4. **Sin bots.** Se captura el audio del sistema; nadie extra entra a la reunión.
 5. **Español primero.** Plantillas, glosario y calidad se miden en español.
-6. **Revisión y trazabilidad.** Nada se exporta sin revisión, y cada punto de la minuta enlaza al momento del audio que lo respalda.
+6. **Revisión y trazabilidad.** Nada se exporta sin revisión, y cada punto de la minuta enlaza al fragmento del transcript que lo respalda.
 7. **Privacidad por diseño.** Sin telemetría por defecto; Taqnote Cloud procesa sin guardar.
+8. **Integrarse, no reemplazar.** Minutas y tareas terminan en las apps que el usuario ya usa; Taqnote no es otro gestor de tareas.
 
 ## Fuera de alcance
 
@@ -37,7 +38,22 @@ Taqnote es un taquígrafo para reuniones: escucha, transcribe y entrega una minu
 
 ## Destino: Taqnote 1.0
 
-Taqnote 1.0 es una app de escritorio firmada para Windows y macOS, una versión web y el plan Taqnote Cloud. Captura cualquier reunión sin bots y transcribe en local o en la nube según el equipo. Entrega minutas en español con plantillas y trazabilidad, convierte los acuerdos en tareas con seguimiento, exporta a las herramientas del usuario y permite buscar en el historial.
+Taqnote 1.0 es una app de escritorio firmada para Windows y macOS, una versión web y el plan Taqnote Cloud. Captura cualquier reunión sin bots y transcribe en local o en la nube según el equipo. Entrega minutas en español con plantillas y trazabilidad, convierte los acuerdos en tareas con seguimiento y las envía a Notion, Microsoft To Do y Lists, y Google Calendar, Tasks y Docs. Además, permite buscar en el historial.
+
+## Integraciones
+
+| App | Qué recibe | Cuentas | Fase |
+| --- | --- | --- | --- |
+| Markdown | La minuta | Ninguna | 1 |
+| Notion | Minuta y tareas del equipo, con responsable | Token interno (F1), OAuth (F2) | 1 / 2 |
+| Microsoft To Do | Compromisos del usuario, con fecha, recordatorio y enlace a la minuta | Personal y de trabajo | 1 |
+| Microsoft Lists | Tareas del equipo en una lista de SharePoint | Solo de trabajo o escuela | 2 |
+| Google Calendar | Seguimientos y bloques de tiempo como eventos | Personal y Workspace | 2 |
+| Google Tasks | Compromisos del usuario con fecha, sin hora | Personal y Workspace | 2 |
+| Google Docs (Drive) | La minuta como documento | Personal y Workspace | 2 |
+| Microsoft Planner y OneNote | Tareas de equipo y minuta | De trabajo | 3 |
+
+Google Drive no maneja tareas: las tareas van a Google Tasks (visibles en Google Calendar) o como eventos de Calendar, y la minuta se guarda como Google Doc en Drive. To Do y Google Tasks son listas personales, así que reciben los compromisos del usuario; las tareas de otras personas van a Notion o Lists.
 
 ## Roadmap
 
@@ -80,12 +96,16 @@ Objetivo: usarlo en reuniones propias, de punta a punta.
 - **MIN-02** Revisión y edición antes de exportar.
 - **MIN-03** Trazabilidad: cada punto enlaza al timestamp del transcript.
 - **TAR-01** Extracción de acuerdos con responsable y fecha.
+- **INT-01** Capa de conectores: modelo de tarea común, enrutamiento por responsable y registro de exportaciones idempotente.
 - **EXP-01** Exportar a Markdown local.
 - **EXP-02** Exportar a Notion con token interno: página de minuta y filas en una base de tareas, con troceo e idempotencia.
+- **INT-02** OAuth de escritorio con PKCE y redirección loopback, reutilizable por proveedor.
+- **EXP-04** Microsoft To Do: compromisos del usuario con fecha, recordatorio y enlace a la minuta.
 - **UX-01** Hotkey para marcar un momento importante.
 - **PRV-01** Datos en SQLite local y audio borrado tras transcribir (configurable).
+- **PRV-02** Keys y tokens OAuth guardados en el keychain del sistema.
 
-**Salida:** 10 reuniones reales en dos semanas, minutas en Notion y cero audio perdido.
+**Salida:** 10 reuniones reales en dos semanas, minutas en Notion, compromisos en To Do y cero audio perdido.
 
 ### Fase 2: Beta pública (Windows)
 
@@ -97,8 +117,12 @@ Objetivo: que cualquier persona con Windows lo instale y funcione en su equipo.
 - **TRN-04** Parakeet v3 como motor rápido para CPU, medido con acentos latinoamericanos.
 - **TRN-05** Transcripción en la nube con key propia (OpenAI, Groq).
 - **MIN-04** Minuta en la nube con key propia, mediante un adaptador compatible con la API de OpenAI.
-- **EXP-03** Conexión con Notion para cualquier usuario vía OAuth. Pendiente verificar si el intercambio de tokens requiere un endpoint propio.
-- **PRV-02** Llaves guardadas en el keychain del sistema.
+- **EXP-03** Conexión con Notion para cualquier usuario vía OAuth, con un Worker que hace el intercambio y la renovación de tokens, porque Notion exige el client secret.
+- **EXP-09** Microsoft Lists: tareas del equipo en una lista de SharePoint (cuentas de trabajo o escuela).
+- **EXP-10** Google Calendar: seguimientos y bloques de tiempo como eventos; invitar a otras personas solo con confirmación explícita.
+- **EXP-11** Google Tasks: compromisos del usuario con fecha.
+- **EXP-12** Google Docs: la minuta como documento en Drive.
+- **INT-03** Verificación de la app ante Google (scopes sensibles de Calendar) y como publisher en Microsoft, para que cualquier usuario pueda conectar sus cuentas.
 - **PRV-03** Aviso de grabación para los participantes.
 - **UX-02** Onboarding: permisos, descarga de modelos desde Hugging Face y benchmark.
 - **DIS-03** Instalador firmado (SignPath o Microsoft Store) y auto-actualización.
@@ -106,7 +130,7 @@ Objetivo: que cualquier persona con Windows lo instale y funcione en su equipo.
 - **DIS-05** Landing y documentación en Cloudflare Pages.
 - **DIS-06** Donaciones con GitHub Sponsors.
 
-**Salida:** 10 usuarios externos lo usan una semana sin ayuda y lo instalan sin advertencias de seguridad.
+**Salida:** 10 usuarios externos lo usan una semana sin ayuda, conectan sus apps y lo instalan sin advertencias de seguridad.
 
 ### Fase 3: Diferenciadores
 
@@ -114,7 +138,7 @@ Objetivo: lo que separa a Taqnote de Meetily y de las herramientas pensadas en i
 
 - **TAR-02** "Mis compromisos": lo que el usuario prometió, detectado en su canal de micrófono.
 - **TAR-03** Seguimiento entre reuniones: la siguiente reunión abre con los pendientes de la anterior.
-- **EXP-04** Microsoft To Do y Planner vía Microsoft Graph.
+- **EXP-08** Microsoft Planner vía Microsoft Graph.
 - **EXP-05** OneNote vía Microsoft Graph.
 - **EXP-06** Exportar a PDF y DOCX.
 - **EXP-07** Borrador de correo con la minuta para los asistentes.
@@ -161,6 +185,7 @@ Objetivo: que quien no tiene GPU ni API keys pague por comodidad, con costo fijo
 ## Ideas en espera (después de 1.0)
 
 - Importar transcripciones de Teams vía Microsoft Graph.
+- Outlook Calendar vía Microsoft Graph.
 - Cuentas y sincronización cifrada entre dispositivos.
 - Espacios compartidos para equipos.
 - App móvil para reuniones presenciales.
@@ -171,6 +196,7 @@ Objetivo: que quien no tiene GPU ni API keys pague por comodidad, con costo fijo
 
 - Este archivo es el mapa; el estado de cada funcionalidad vive en GitHub Issues.
 - Cada ID es el prefijo del título de su Issue, y cada fase es un Milestone.
+- Los IDs no se renumeran: una funcionalidad nueva toma el siguiente número libre de su prefijo, aunque quede fuera de orden.
 - Una idea nueva entra primero en "Ideas en espera" y pasa al roadmap solo si acerca la métrica norte.
 - Un cambio de rumbo se registra como ADR en `docs/adr/` y después se refleja aquí.
 - El documento se revisa al cerrar cada fase.

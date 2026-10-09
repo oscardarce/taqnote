@@ -1,6 +1,6 @@
 # Taqnote: plan de implementación
 
-Última actualización: 2026-10-08 · Relacionado: [roadmap](../roadmap.md) · [arquitectura](../arquitectura.md)
+Última actualización: 2026-10-08 · Relacionado: [roadmap](../ROADMAP.md) · [arquitectura](../architecture.md)
 
 Este plan detalla paso a paso las fases 0 y 1, que son las que se construyen ahora. Las fases 2 a 5 quedan a nivel de hitos y se detallan al empezar cada una: un plan fino a meses de distancia envejece antes de usarse. Cada paso es un pull request y referencia los IDs del roadmap.
 
@@ -10,6 +10,7 @@ Este plan detalla paso a paso las fases 0 y 1, que son las que se construyen aho
 - **Definición de listo:** CI en verde, pruebas del paso, docs actualizadas e Issue cerrado desde el PR con `Closes #<número>`.
 - **Decisiones:** si un paso obliga a elegir entre alternativas, se escribe un ADR antes de mergear.
 - **Tamaño:** S, M o L es esfuerzo relativo, no una fecha. Las fechas viven en los milestones de GitHub.
+- **Sesiones con el agente:** un paso por sesión. Al cerrarla, `/cierre-sesion` actualiza `docs/progress.md` y luego `/clear`; la siguiente sesión arranca solo con ese archivo.
 
 ## Prerrequisitos (Windows)
 
@@ -25,6 +26,10 @@ Este plan detalla paso a paso las fases 0 y 1, que son las que se construyen aho
 | LLVM (libclang) | Bindings de whisper-rs | Solo si el build lo pide |
 | Ollama | LLM local | Un modelo de 8 a 14B parámetros |
 | VS Code con rust-analyzer | Editor | |
+| Plugins de Claude Code `rust-analyzer-lsp` y `typescript-lsp` | El agente ve errores de tipos al editar, sin compilar | Requieren `rustup component add rust-analyzer` y `npm install -g typescript-language-server typescript`; solo en sesiones de terminal |
+| Integración interna de Notion | Exportar en la Fase 1 | Compartir con ella las bases de Minutas y Tareas |
+| Registro de app en Microsoft Entra | To Do (Fase 1) y Lists (Fase 2) | Plataforma "Mobile and desktop applications", cuentas de cualquier organización y personales |
+| Proyecto de Google Cloud con cliente OAuth de escritorio | Calendar, Tasks y Docs (Fase 2) | En modo de prueba: hasta 100 usuarios y reconexión cada 7 días |
 
 ## Ruta de aprendizaje mínima
 
@@ -38,9 +43,9 @@ Antes del spike (paso 0.5):
 
 ### 0.1 Documentación base · DOC-01 · S
 
-Crear `docs/` con su `README.md` (índice), `roadmap.md`, `arquitectura.md`, este plan y los ADRs 0001 a 0006 que enlaza la arquitectura.
+Tener en `docs/` el índice (`README.md`), `ROADMAP.md`, `architecture.md`, este plan, `progress.md`, `learning/glossary.md` y los ADRs 01 a 07 que enlaza la arquitectura, y `CLAUDE.md` en la raíz.
 
-**Listo cuando:** el README del repo enlaza a `docs/` y cada ADR tiene contexto, decisión y consecuencias.
+**Listo cuando:** el README del repo enlaza a `docs/`, cada ADR tiene contexto, decisión y consecuencias, y `CLAUDE.md` está en la raíz.
 
 ### 0.2 Licencia · DOC-02 · S
 
@@ -62,7 +67,9 @@ Elegir entre MIT o Apache-2.0, que maximizan la adopción, y AGPL-3.0, que oblig
 3. Dentro de `apps/`, ejecutar `pnpm create tauri-app` con nombre `desktop`, frontend React con TypeScript y pnpm como gestor.
 4. Crear `packages/core` (`@taqnote/core`): TypeScript estricto y Vitest, con los tipos de dominio y los puertos de la arquitectura, sin dependencias de Tauri ni del navegador.
 5. Crear `packages/ui` (`@taqnote/ui`): componentes React con Tailwind. `apps/desktop` consume ambos con `"workspace:*"`.
-6. Calidad: ESLint y Prettier para TypeScript, `cargo fmt` y `cargo clippy` para Rust, `.editorconfig`, y un `.gitignore` con `node_modules`, `target`, `dist`, `.env*` y las carpetas de grabaciones de desarrollo. Los audios de `fixtures/` sí se versionan.
+6. Calidad: ESLint y Prettier para TypeScript, `cargo fmt` y `cargo clippy` para Rust, `.editorconfig`, y un `.gitignore` con `node_modules`, `target`, `dist`, `.env*`, la configuración personal del agente (`.claude/settings.local.json`, `CLAUDE.local.md`) y las carpetas de grabaciones de desarrollo. Los audios de `fixtures/` sí se versionan.
+
+7. Comprobar que los comandos de la sección "Comandos" de `CLAUDE.md` funcionan, e instalar los plugins `rust-analyzer-lsp` y `typescript-lsp`.
 
 **Listo cuando:** `pnpm --filter desktop tauri dev` abre la ventana con un componente de `@taqnote/ui` que usa un tipo de `@taqnote/core`.
 
@@ -122,7 +129,7 @@ Los hallazgos van a `docs/spikes/cap-00.md`, y las decisiones de VAD y backend d
 
 ## Fase 1: MVP personal (Windows)
 
-Los pasos 1.1 a 1.4 producen una grabadora con transcript; los pasos 1.5 a 1.8 la convierten en minutas, y el 1.9 es el uso real.
+Los pasos 1.1 a 1.4 producen una grabadora con transcript. Del 1.5 al 1.7 salen las minutas; del 1.8 al 1.11, la conexión con Notion y Microsoft To Do, y el 1.12 es el uso real.
 
 ### 1.1 Modelo de datos y almacenamiento · PRV-01 · M
 
@@ -183,37 +190,65 @@ Los pasos 1.1 a 1.4 producen una grabadora con transcript; los pasos 1.5 a 1.8 l
 
 **Listo cuando:** el archivo se ve en VS Code igual que en la app.
 
-### 1.8 Exportar a Notion · EXP-02 · M
+### 1.8 Capa de conectores y keychain · INT-01, PRV-02 · M
+
+- `ActionItem` y los puertos `DocDestination`, `TaskDestination` y `CalendarDestination` en `@taqnote/core`.
+- Enrutamiento por responsable: compromisos del usuario a su lista personal, tareas de otros a Notion. En la revisión, el usuario confirma el destino de cada tarea.
+- Tabla `exports` con `item_key` para la idempotencia, y tabla `connections`.
+- `SecretStore` sobre el keychain del sistema.
+- Pruebas con Vitest del enrutamiento y de la idempotencia, con destinos falsos.
+
+**Listo cuando:** una minuta de prueba envía cada tarea al destino esperado y reexportarla no crea duplicados.
+
+### 1.9 Exportar a Notion · EXP-02 · M
 
 - Integración interna de Notion con acceso a dos data sources relacionados: Minutas y Tareas.
 - Cliente con `Notion-Version: 2025-09-03` que crea las páginas con un parent de tipo `data_source_id`.
 - Troceo en textos de hasta 2000 caracteres y lotes de hasta 100 bloques; ante un 429, reintento respetando `Retry-After`.
-- Idempotencia: la tabla `exports` guarda el id de la página, y reexportar la actualiza en vez de duplicarla.
-- El token vive en la carpeta de configuración de la app, nunca en el repo.
+- El token se guarda en el keychain, nunca en el repo.
 
 **Listo cuando:** exportar dos veces la misma reunión deja una sola página con sus tareas enlazadas.
 
-### 1.9 Uso real · salida de la Fase 1 · M
+### 1.10 OAuth de escritorio · INT-02 · L
+
+- Módulo de OAuth en Rust: authorization code con PKCE, navegador del sistema y servidor efímero en `127.0.0.1` que recibe el código.
+- Proveedor Microsoft sobre el registro de Entra; renovación automática del access token con el refresh token del keychain.
+- Pantalla de conexiones: conectar, ver la cuenta y desconectar (borra los tokens).
+
+**Listo cuando:** la cuenta de Microsoft se conecta una vez y sigue funcionando después de reiniciar la app y de que venza el access token.
+
+### 1.11 Exportar a Microsoft To Do · EXP-04 · M
+
+- Adaptador `TaskDestination` sobre Graph: `POST /me/todo/lists/{id}/tasks` con el permiso `Tasks.ReadWrite`.
+- El usuario elige la lista de destino; cada tarea lleva `dueDateTime`, recordatorio y un `linkedResource` con el enlace a la minuta.
+- Probar con la cuenta de trabajo y con una cuenta personal: si el tenant de la empresa bloquea el consentimiento, se detecta aquí.
+
+**Listo cuando:** los compromisos de una reunión real aparecen en To Do con fecha y enlace a la minuta, sin duplicarse al reexportar.
+
+### 1.12 Uso real · salida de la Fase 1 · M
 
 - Usar Taqnote en todas las reuniones durante dos semanas y abrir un Issue por cada fallo.
 - Anotar por reunión el tiempo hasta la minuta, las ediciones necesarias y el audio perdido.
 
-**Listo cuando:** se cumple la salida del roadmap: 10 reuniones reales, minutas en Notion y cero audio perdido.
+**Listo cuando:** se cumple la salida del roadmap: 10 reuniones reales, minutas en Notion, compromisos en To Do y cero audio perdido.
 
 ## Fases 2 a 5: hitos
 
 ### Fase 2: Beta pública
 
 1. Mínimos y benchmark (HW-01, HW-02) con un audio de muestra propio o de Common Voice.
-2. Motor por etapa y keys propias en el keychain (HW-03, TRN-05, MIN-04, PRV-02).
+2. Motor por etapa y keys propias (HW-03, TRN-05, MIN-04).
 3. Parakeet v3 para CPU (TRN-04), medido con los mismos fixtures.
 4. Onboarding y aviso de grabación (UX-02, PRV-03).
-5. Conexión con Notion vía OAuth (EXP-03); antes, verificar si el intercambio de tokens necesita un endpoint en Workers.
-6. Instalador firmado con auto-actualización (DIS-03), prueba de WER en el CI (DIS-04), landing (DIS-05) y GitHub Sponsors (DIS-06).
+5. Microsoft Lists (EXP-09), con el permiso `Sites.ReadWrite.All` pedido solo al activar el conector.
+6. Proveedor Google en el módulo de OAuth, y después Google Calendar, Tasks y Docs (EXP-10 a EXP-12). Durante el desarrollo, la app de Google queda en modo de prueba.
+7. Conexión con Notion vía OAuth con el broker en el Worker (EXP-03); es el primer código de `apps/cloud`.
+8. Landing con política de privacidad en un dominio verificado (DIS-05), y en cuanto exista, la verificación ante Google y como publisher en Microsoft (INT-03).
+9. Instalador firmado con auto-actualización (DIS-03), prueba de WER en el CI (DIS-04) y GitHub Sponsors (DIS-06).
 
 ### Fase 3: Diferenciadores
 
-Primero TAR-02 y TAR-03, que usan datos que ya existen. Después MIN-05 a MIN-07, TRN-06 y TRN-07, UX-03 a UX-05, EXP-04 a EXP-07, PRV-04 e HIS-01 e HIS-02. La versión de macOS (DIS-07) entra cuando haya presupuesto para Apple Developer y una Mac de pruebas.
+Primero TAR-02 y TAR-03, que usan datos que ya existen. Después MIN-05 a MIN-07, TRN-06 y TRN-07, UX-03 a UX-05, EXP-05 a EXP-08, PRV-04 e HIS-01 e HIS-02. La versión de macOS (DIS-07) entra cuando haya presupuesto para Apple Developer y una Mac de pruebas.
 
 ### Fase 4: Web
 
@@ -231,6 +266,8 @@ Workers y D1 (CLD-01), después Paddle y licencias (CLD-02, CLD-03), luego el pr
 | whisper.cpp no compila en la máquina de desarrollo | Prerrequisitos listados; Vulkan como alternativa a CUDA |
 | El LLM local inventa acuerdos | Referencias obligatorias a segmentos y revisión antes de exportar |
 | La API de Notion cambia | Versión fijada en el header y pruebas del cliente con respuestas grabadas |
+| El tenant de la empresa bloquea el consentimiento | To Do usa un permiso acotado y se prueba en el paso 1.11; Lists es opcional y se documenta cómo pedir la aprobación del admin |
+| Google tarda o rechaza la verificación | Iniciarla apenas exista la landing; mientras tanto, Notion y To Do cubren las tareas |
 | Agotamiento en un proyecto personal largo | Fases cortas con salida verificable y uso real desde la Fase 1 |
 
 ## Referencias
@@ -238,4 +275,6 @@ Workers y D1 (CLD-01), después Paddle y licencias (CLD-02, CLD-03), luego el pr
 - [Tauri 2: prerrequisitos](https://v2.tauri.app/start/prerequisites/)
 - [NVIDIA: guía de migración a Blackwell](https://forums.developer.nvidia.com/t/software-migration-guide-for-nvidia-blackwell-rtx-gpus-a-guide-to-cuda-12-8-pytorch-tensorrt-and-llama-cpp/321330)
 - [actions/checkout](https://github.com/actions/checkout) · [actions/setup-node](https://github.com/actions/setup-node) · [pnpm/action-setup](https://github.com/pnpm/action-setup) · [Swatinem/rust-cache](https://github.com/Swatinem/rust-cache)
-- [Notion: guía de la versión 2025-09-03](https://developers.notion.com/docs/upgrade-guide-2025-09-03)
+- [Notion: guía de la versión 2025-09-03](https://developers.notion.com/docs/upgrade-guide-2025-09-03) · [autorización OAuth](https://developers.notion.com/docs/authorization)
+- [Microsoft Graph: crear tarea de To Do](https://learn.microsoft.com/en-us/graph/api/todotasklist-post-tasks) · [Microsoft Entra: redirect URIs](https://learn.microsoft.com/entra/identity-platform/reply-url)
+- [Google: OAuth para apps de escritorio](https://developers.google.com/accounts/docs/OAuth2InstalledApp) · [estado de prueba y usuarios](https://support.google.com/cloud/answer/15549945?hl=es)
